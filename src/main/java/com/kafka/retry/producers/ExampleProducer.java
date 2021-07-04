@@ -5,16 +5,14 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 
-import java.util.Random;
-import java.util.concurrent.ExecutionException;
+import java.util.UUID;
 
 @Service
 public class ExampleProducer {
-    @Value("${topics.my_topic}")
+    @Value("${topics.main.topic}")
     private String topic;
 
     private KafkaTemplate kafkaTemplate;
-    private static final Integer ID = 8;
 
     @Autowired
     public ExampleProducer(KafkaTemplate kafkaTemplate) {
@@ -23,18 +21,15 @@ public class ExampleProducer {
 
     public void send(String message) {
         try {
-            generateNewMessages(message, 10);
+            generateNewMessages(message, 1);
         } catch (Exception e) {
             throw new RuntimeException("An error was thrown while sending the message - " + e.getMessage());
         }
     }
 
     private void generateNewMessages(String message, int range) {
-        Random rand = new Random();
-
         for (int i = 0; i < range; i++) {
-            int randomId = rand.nextInt(10);
-            kafkaTemplate.send(topic, String.valueOf(randomId), message + i);
+            kafkaTemplate.send(topic, UUID.randomUUID().toString(), message + " " + i);
         }
     }
 }

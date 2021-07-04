@@ -1,4 +1,4 @@
-package com.kafka.retry.configurations;
+package com.kafka.retry.configurations.managers;
 
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.common.TopicPartition;

@@ -1,12 +1,17 @@
 package com.kafka.retry.configurations;
 
+import com.kafka.retry.configurations.managers.KafkaTopicManager;
 import com.kafka.retry.exceptions.NonRecoverableException;
 import com.kafka.retry.exceptions.RecoverableException;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.common.TopicPartition;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.apache.kafka.common.header.Headers;
+import org.apache.kafka.common.header.internals.RecordHeader;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.DependsOn;
 import org.springframework.kafka.annotation.EnableKafka;
 import org.springframework.kafka.config.ConcurrentKafkaListenerContainerFactory;
 import org.springframework.kafka.core.ConsumerFactory;
@@ -15,29 +20,35 @@ import org.springframework.kafka.listener.DeadLetterPublishingRecoverer;
 import org.springframework.kafka.listener.SeekToCurrentErrorHandler;
 import org.springframework.util.backoff.FixedBackOff;
 
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.BiFunction;
 
+import static java.lang.String.valueOf;
+import static java.lang.System.currentTimeMillis;
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Collections.singletonMap;
+import static org.springframework.kafka.listener.ContainerProperties.AckMode.MANUAL_IMMEDIATE;
 
-
+@Slf4j
 @Configuration
 @EnableKafka
+@DependsOn("kafkaTopicManager")
 public class ConsumerConfiguration {
+    private KafkaTopicManager kafkaTopicManager;
+    @Value("${topics.main.topic}")
+    private String mainTopic;
+    @Value("${topics.retry.dlq}")
+    private String dlqTopic;
+    @Value("${topics.retry.max-retries}")
+    private Integer numberOfRetries;
 
-    @Autowired
-    private KafkaTemplate kafkaTemplate;
-    static final FixedBackOff NO_RETRY = new FixedBackOff(0, 0);
-    static final String ERROR_TOPIC = "my_topic_group_id_ERROR";
-    static final String TOPIC_PATTERN = "my_topic_group_id_RETRY_[0-9]+";
-    static final String FIRST_RETRY_TOPIC = "my_topic_group_id_RETRY_1";
-    static final String TOPIC = "my_topic";
-    static final Integer NUMBER_OF_RETRIES = 2;
+    private static final String LAST_RETRY_ATTEMPT_TIMESTAMP_HEADER = "LAST_RETRY_ATTEMPT_TIMESTAMP";
+    private static final FixedBackOff NO_RETRY = new FixedBackOff(0, 0);
 
     @Bean
-    public ConcurrentKafkaListenerContainerFactory<String, String> kafkaListenerContainerFactory(ConsumerFactory<Object, Object> kafkaConsumerFactory) {
+    public ConcurrentKafkaListenerContainerFactory<String, String> kafkaListenerContainerFactory(ConsumerFactory<Object, Object> kafkaConsumerFactory,
+                                                                                                 KafkaTemplate kafkaTemplate) {
         ConcurrentKafkaListenerContainerFactory<String, String> factory = new ConcurrentKafkaListenerContainerFactory<>();
         factory.setConsumerFactory(kafkaConsumerFactory);
         DeadLetterPublishingRecoverer deadLetterPublishingRecoverer = new DeadLetterPublishingRecoverer(singletonMap(Object.class, kafkaTemplate), mainResolver());
@@ -46,53 +57,59 @@ public class ConsumerConfiguration {
         return factory;
     }
 
-
     @Bean
-    public ConcurrentKafkaListenerContainerFactory<String, String> kafkaRetryListenerContainerFactory(ConsumerFactory<Object, Object> kafkaConsumerFactory) {
+    public ConcurrentKafkaListenerContainerFactory<String, String> kafkaRetryListenerContainerFactory(ConsumerFactory<Object, Object> kafkaConsumerFactory,
+                                                                                                      KafkaTemplate kafkaTemplate) {
         ConcurrentKafkaListenerContainerFactory<String, String> factory = new ConcurrentKafkaListenerContainerFactory<>();
         factory.setConsumerFactory(kafkaConsumerFactory);
         DeadLetterPublishingRecoverer deadLetterPublishingRecoverer = new DeadLetterPublishingRecoverer(singletonMap(Object.class, kafkaTemplate), retryResolver());
+        deadLetterPublishingRecoverer.setHeadersFunction(headersResolver());
         factory.setErrorHandler(new SeekToCurrentErrorHandler(deadLetterPublishingRecoverer, NO_RETRY));
+        factory.setStatefulRetry(true);
+        factory.setMissingTopicsFatal(true);
+        factory.getContainerProperties().setAckMode(MANUAL_IMMEDIATE);
 
         return factory;
     }
 
-    @Bean
-    public BiFunction<ConsumerRecord<?, ?>, Exception, TopicPartition>
-    mainResolver() {
-        return (r, e) -> {
-            //checks if the exception is recoverable
-            //if not, send the message directly to DLT topic
-            if (isRecoveryException(e)) {
-                String source = r.topic() != null && !r.topic().isEmpty()?r.topic():TOPIC;
-                System.out.println(LocalDateTime.now() + " - " + r.key() + "- receiving message from " + source);
+    //prepare headers with current attempt timestamp
+    public BiFunction<ConsumerRecord<?, ?>, Exception, Headers> headersResolver() {
+        return (record, exception) -> {
+            Headers headers = record.headers();
+            long attemptTimestamp = currentTimeMillis();
 
-                String target = !source.matches(TOPIC_PATTERN) ? FIRST_RETRY_TOPIC : ERROR_TOPIC;
-                System.out.println(LocalDateTime.now() + " - " + r.key() + " - sending message to topic " + target);
-                return new TopicPartition(target, r.partition());
+            if (null != headers.lastHeader(LAST_RETRY_ATTEMPT_TIMESTAMP_HEADER)) {
+                headers.remove(LAST_RETRY_ATTEMPT_TIMESTAMP_HEADER);
             }
-            System.out.println(LocalDateTime.now() + " - " + r.key() + " - sending message to topic " + ERROR_TOPIC);
-            return new TopicPartition(ERROR_TOPIC, r.partition());
+            byte[] attemptTimestampInBytes = valueOf(attemptTimestamp).getBytes(UTF_8);
+            headers.add(new RecordHeader(LAST_RETRY_ATTEMPT_TIMESTAMP_HEADER,
+                    attemptTimestampInBytes));
+            return headers;
         };
     }
 
-    @Bean
-    public BiFunction<ConsumerRecord<?, ?>, Exception, TopicPartition>
-    retryResolver() {
-        return (r, e) -> {
-            String source = r.topic().matches(TOPIC_PATTERN)?r.topic():FIRST_RETRY_TOPIC;
-            System.out.println(LocalDateTime.now() + " - " + r.key() + " - receiving message from " + source);
+    // resolve topic destination for the main consumer
+    public BiFunction<ConsumerRecord<?, ?>, Exception, TopicPartition> mainResolver() {
+        return (record, exception) -> {
+            if (isRecoverableException(exception)) {
+                String source = record.topic() != null && !record.topic().isEmpty() ? record.topic() : mainTopic;
+                String target = kafkaTopicManager.getTopicByName(source).getTopicName();
+                return new TopicPartition(target, record.partition());
+            }
+            return new TopicPartition(kafkaTopicManager.getLastTopic().getTopicName(), record.partition());
+        };
+    }
 
-            String target = "";
-            int topic_number = Integer.parseInt(source.substring(source.lastIndexOf("_")).split("_")[1]);
-
-            if (topic_number < NUMBER_OF_RETRIES)
-                target = source.substring(0, source.lastIndexOf("_")) + "_" + (topic_number + 1);
+    //resolve topic destination for retries consumer
+    public BiFunction<ConsumerRecord<?, ?>, Exception, TopicPartition> retryResolver() {
+        return (record, exception) -> {
+            String target;
+            int actualRetryCount = kafkaTopicManager.getTopicByName(record.topic()).getRetryCount();
+            if (actualRetryCount < numberOfRetries)
+                target = kafkaTopicManager.getTopicByRetryCount(actualRetryCount).getNextTopic().getTopicName();
             else
-                target = ERROR_TOPIC;
-
-            System.out.println(LocalDateTime.now() + " - " + r.key() + " - sending message to topic " + target);
-            return new TopicPartition(target, r.partition());
+                target = kafkaTopicManager.getLastTopic().getTopicName();
+            return new TopicPartition(target, record.partition());
         };
     }
 
@@ -104,9 +121,9 @@ public class ConsumerConfiguration {
         return exceptionList;
     }
 
-    private boolean isRecoveryException(Exception exception) {
+    private boolean isRecoverableException(Exception exception) {
         List<Class<? extends Exception>> list = recoverableExceptionList();
-        Class clazz = exception.getCause().getClass();
+        Class<? extends Throwable> clazz = exception.getCause().getClass();
 
         return list.contains(clazz);
     }

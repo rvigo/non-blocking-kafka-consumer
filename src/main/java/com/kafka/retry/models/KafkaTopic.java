@@ -1,12 +1,12 @@
 package com.kafka.retry.models;
 
-public class KafkaTopicHolder {
+public class KafkaTopic {
     private String topicName;
     private Integer retryCount;
-    private KafkaTopicHolder nextTopic;
-    private KafkaTopicHolder previousTopic;
+    private KafkaTopic nextTopic;
+    private KafkaTopic previousTopic;
 
-    public KafkaTopicHolder(String topicName, Integer retryCount) {
+    public KafkaTopic(String topicName, Integer retryCount) {
         this.topicName = topicName;
         this.retryCount = retryCount;
     }
@@ -27,19 +27,19 @@ public class KafkaTopicHolder {
         this.retryCount = retryCount;
     }
 
-    public KafkaTopicHolder getNextTopic() {
+    public KafkaTopic getNextTopic() {
         return nextTopic;
     }
 
-    public void setNextTopic(KafkaTopicHolder nextTopic) {
+    public void setNextTopic(KafkaTopic nextTopic) {
         this.nextTopic = nextTopic;
     }
 
-    public KafkaTopicHolder getPreviousTopic() {
+    public KafkaTopic getPreviousTopic() {
         return previousTopic;
     }
 
-    public void setPreviousTopic(KafkaTopicHolder previousTopic) {
+    public void setPreviousTopic(KafkaTopic previousTopic) {
         this.previousTopic = previousTopic;
     }
 

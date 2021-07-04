@@ -1,5 +1,6 @@
-package com.kafka.retry.models;
+package com.kafka.retry.configurations.managers;
 
+import com.kafka.retry.models.KafkaTopic;
 import org.springframework.stereotype.Component;
 
 @Component

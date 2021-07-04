@@ -1,17 +1,31 @@
 #spring config
-server.port=8082
-
+server:
+  port: 8082
+teste-enum: -first-retry
 #topic config
-topics.my_topic = my_topic
+topics:
+  main:
+    topic: dados-lgpd
+    id: main
+  retry:
+    max-retries: 3
+    first-retry-topic: ${topics.retry.topic-prefix}-first-retry
+    first-retry-id: first-retry
+    second-retry-topic: ${topics.retry.topic-prefix}-second-retry
+    second-retry-id: second-retry
+    third-retry-topic: ${topics.retry.topic-prefix}-third-retry
+    third-retry-id: third-retry
+    dlq: ${topics.retry.topic-prefix}-dlq
 
 #producer config
-kafka.bootstrap-servers=kafka:9092
+kafka:
+  bootstrap-servers: localhost:9092
 
 #kafka consumer properties
-spring.kafka.consumer.bootstrap-servers=http://kafka:9092
-spring.kafka.consumer.group-id=group-id
-spring.kafka.consumer.auto-offset-reset=earliest
-spring.kafka.consumer.max-poll-records=500
-spring.kafka.consumer.fetch-min-size= 209715200
-
-
+spring:
+  kafka:
+    consumer:
+      options.enable.auto.commit: false
+      bootstrap-servers: http://localhost:9092
+      group-id: aws-consumer
+      auto-offset-reset: latest
