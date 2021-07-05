@@ -1,15 +1,16 @@
-package com.kafka.retry.configurations.managers;
+package com.kafka.retry.configurations;
 
+import com.kafka.retry.exceptions.UnregisteredTopicException;
 import com.kafka.retry.models.KafkaTopic;
 import org.springframework.stereotype.Component;
 
 @Component
-public class KafkaTopicManager {
+public class KafkaTopicHolder {
     private KafkaTopic firstTopic;
     private KafkaTopic lastTopic;
     private int size;
 
-    public KafkaTopicManager() {
+    public KafkaTopicHolder() {
         firstTopic = null;
         lastTopic = null;
     }
@@ -26,13 +27,37 @@ public class KafkaTopicManager {
         if (size != 0) {
             lastTopic.setNextTopic(kafkaTopic);
             kafkaTopic.setPreviousTopic(lastTopic);
-
             lastTopic = kafkaTopic;
         } else {
             lastTopic = kafkaTopic;
             firstTopic = lastTopic;
         }
         size++;
+    }
+
+    public void remove(KafkaTopic kafkaTopic) {
+        KafkaTopic currentTopic = firstTopic;
+        while (currentTopic != null
+                && currentTopic.getNextTopic() != null
+                || lastTopic.equals(currentTopic)) {
+            if (currentTopic.equals(kafkaTopic)) {
+                if (size == 1) {
+                    firstTopic = null;
+                    lastTopic = null;
+                } else if (currentTopic.equals(firstTopic)) {
+                    firstTopic.getNextTopic().setPreviousTopic(null);
+                    firstTopic = firstTopic.getNextTopic();
+                } else if (currentTopic.equals(lastTopic)) {
+                    lastTopic = lastTopic.getPreviousTopic();
+                    lastTopic.setNextTopic(null);
+                } else {
+                    currentTopic.getPreviousTopic().setNextTopic(currentTopic.getNextTopic());
+                    currentTopic.getNextTopic().setNextTopic(currentTopic.getPreviousTopic());
+                }
+                size--;
+                break;
+            }
+        }
     }
 
     public boolean contains(String topic) {
@@ -46,7 +71,7 @@ public class KafkaTopicManager {
         return false;
     }
 
-    public KafkaTopic getTopicByName(String topic) {
+    public KafkaTopic getKafkaTopicByName(String topic) {
         KafkaTopic current = firstTopic;
         while (null != current) {
             if (current.getTopicName().equals(topic)) {
@@ -54,18 +79,18 @@ public class KafkaTopicManager {
             }
             current = current.getNextTopic();
         }
-        return lastTopic;
+        throw new UnregisteredTopicException();
     }
 
-    public KafkaTopic getTopicByRetryCount(Integer retryCount) {
+    public KafkaTopic getKafkaTopicByRetryValue(Integer retryCount) {
         KafkaTopic currentTopic = firstTopic;
         while (null != currentTopic) {
-            if (currentTopic.getRetryCount().equals(retryCount)) {
+            if (currentTopic.getRetryValue().equals(retryCount)) {
                 return currentTopic;
             }
             currentTopic = currentTopic.getNextTopic();
         }
-        return lastTopic;
+        throw new UnregisteredTopicException();
     }
 
     public int size() {

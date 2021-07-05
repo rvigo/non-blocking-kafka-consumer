@@ -1,9 +1,8 @@
 package com.kafka.retry.exceptions;
 
-
 public class CustomException extends RuntimeException {
 
-    private String message;
+    private final String message;
 
     public CustomException(String message, Exception ex) {
         super(message);

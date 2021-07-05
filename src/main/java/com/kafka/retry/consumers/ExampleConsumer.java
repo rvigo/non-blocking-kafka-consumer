@@ -1,8 +1,7 @@
 package com.kafka.retry.consumers;
 
-
 import com.kafka.retry.configurations.managers.KafkaConsumerManager;
-import com.kafka.retry.exceptions.RecoverableException;
+import com.kafka.retry.dtos.MessageDTO;
 import com.kafka.retry.services.ExampleService;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
@@ -17,17 +16,13 @@ import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.stereotype.Service;
 
 import static java.lang.String.format;
-import static java.lang.System.currentTimeMillis;
-import static java.lang.Thread.sleep;
 
 @Slf4j
 @Service
 public class ExampleConsumer extends AbstractConsumerSeekAware {
-    private static final String MAIN_TOPIC_ID = "MAIN";
-    private static final String FIRST_RETRY_ID = "RETRY_1";
-    private static final String SECOND_RETRY_ID = "RETRY_2";
-    private static final String THIRD_RETRY_ID = "RETRY_3";
-
+    private static final String LAST_RETRY_ATTEMPT_TIMESTAMP_HEADER = "LAST_RETRY_ATTEMPT_TIMESTAMP";
+    private final KafkaConsumerManager kafkaConsumerManager;
+    private final ExampleService service;
     @Value("${topics.retry.first-retry-topic}")
     private String firstRetryTopic;
     @Value("${topics.retry.second-retry-topic}")
@@ -35,12 +30,6 @@ public class ExampleConsumer extends AbstractConsumerSeekAware {
     @Value("${topics.retry.third-retry-topic}")
     private String thirdRetryTopic;
 
-    private static final long firstRetryDelay = 60000L;
-    private static final long secondRetryDelay = 120000L;
-    private static final long thirdRetryDelay = 240000L;
-
-    private final KafkaConsumerManager kafkaConsumerManager;
-    private final ExampleService service;
 
     @Autowired
     public ExampleConsumer(KafkaConsumerManager kafkaConsumerManager, ExampleService service) {
@@ -48,106 +37,101 @@ public class ExampleConsumer extends AbstractConsumerSeekAware {
         this.service = service;
     }
 
-    @KafkaListener(id = MAIN_TOPIC_ID,
+    @KafkaListener(id = "${topics.main.id}",
             topics = "${topics.main.topic}",
             groupId = "${spring.kafka.consumer.group-id}",
             containerFactory = "kafkaListenerContainerFactory")
-    public void consume(ConsumerRecord<String, String> message,
+    public void consume(ConsumerRecord<String, MessageDTO> message,
                         @Header(KafkaHeaders.RECEIVED_TOPIC) String topic,
                         @Header(KafkaHeaders.RECEIVED_MESSAGE_KEY) String key) {
         log.info(format("processing message with id %s from topic %s", key, topic));
-        throw new RecoverableException("sending to RETRY 1");
+        service.process(message.value());
     }
 
-    @KafkaListener(id = FIRST_RETRY_ID,
+    @KafkaListener(id = "${topics.retry.first-retry-id}",
             topics = "${topics.retry.first-retry-topic}",
             groupId = "${spring.kafka.consumer.group-id}",
             containerFactory = "kafkaRetryListenerContainerFactory")
-    public void firstRetry(ConsumerRecord<String, String> message,
+    public void firstRetry(ConsumerRecord<String, MessageDTO> message,
                            Acknowledgment acknowledgment,
                            @Header(KafkaHeaders.RECEIVED_TOPIC) String topic,
                            @Header(KafkaHeaders.RECEIVED_MESSAGE_KEY) String key,
-                           @Header("attempt_timestamp") String timestamp) throws InterruptedException {
+                           @Header(LAST_RETRY_ATTEMPT_TIMESTAMP_HEADER) String timestamp) {
         long attemptTimestamp = Long.parseLong(timestamp);
-        if (shouldProcess(firstRetryDelay, attemptTimestamp)) {
-            acknowledgment.acknowledge();
-            log.info(format("trying to reprocess message with id %s from topic %s-%s", key, topic, message.partition()));
-            throw new RecoverableException("sending to RETRY 2");
+        if (kafkaConsumerManager.shouldConsume(topic, attemptTimestamp)) {
+            try {
+                log.info(format("trying to reprocess message with id %s from topic %s-%s", key, topic, message.partition()));
+                service.process(message.value());
+            } finally {
+                acknowledgment.acknowledge();
+            }
         } else {
-            sleepPartitionConsumption(FIRST_RETRY_ID,
+            kafkaConsumerManager.sleep(
                     topic,
                     message.partition(),
-                    getRemainingSleepTimeInMillis(firstRetryDelay, attemptTimestamp));
+                    attemptTimestamp);
 
             //rewind offset to seek last message at given partition
             rewindOnePartitionOneRecord(firstRetryTopic, message.partition());
         }
     }
 
-    @KafkaListener(id = SECOND_RETRY_ID, topics = "${topics.retry.second-retry-topic}",
+    @KafkaListener(id = "${topics.retry.second-retry-id}",
+            topics = "${topics.retry.second-retry-topic}",
             groupId = "${spring.kafka.consumer.group-id}",
             containerFactory = "kafkaRetryListenerContainerFactory")
-    public void secondRetry(ConsumerRecord<String, String> message,
+    public void secondRetry(ConsumerRecord<String, MessageDTO> message,
                             Acknowledgment acknowledgment,
                             @Header(KafkaHeaders.RECEIVED_TOPIC) String topic,
                             @Header(KafkaHeaders.RECEIVED_MESSAGE_KEY) String key,
-                            @Header("attempt_timestamp") String timestamp) throws InterruptedException {
+                            @Header(LAST_RETRY_ATTEMPT_TIMESTAMP_HEADER) String timestamp) {
         long attemptTimestamp = Long.parseLong(timestamp);
-        if (shouldProcess(secondRetryDelay, attemptTimestamp)) {
-            acknowledgment.acknowledge();
-            log.info(format("trying to reprocess message with id %s from topic %s-%s", key, topic, message.partition()));
-            throw new RecoverableException("sending to RETRY 3");
+        if (kafkaConsumerManager.shouldConsume(topic, attemptTimestamp)) {
+            try {
+                log.info(format("trying to reprocess message with id %s from topic %s-%s", key, topic, message.partition()));
+                service.process(message.value());
+            } finally {
+                acknowledgment.acknowledge();
+            }
         } else {
-            sleepPartitionConsumption(SECOND_RETRY_ID,
-                    secondRetryTopic,
+            kafkaConsumerManager.sleep(secondRetryTopic,
                     message.partition(),
-                    getRemainingSleepTimeInMillis(secondRetryDelay, attemptTimestamp));
+                    attemptTimestamp);
 
             //rewind offset to seek last message at given partition
             rewindOnePartitionOneRecord(secondRetryTopic, message.partition());
         }
     }
 
-    @KafkaListener(id = THIRD_RETRY_ID,
+    @KafkaListener(id = "${topics.retry.third-retry-id}",
             topics = "${topics.retry.third-retry-topic}",
             groupId = "${spring.kafka.consumer.group-id}",
             containerFactory = "kafkaRetryListenerContainerFactory")
-    public void thirdRetry(ConsumerRecord<String, String> message,
+    public void thirdRetry(ConsumerRecord<String, MessageDTO> message,
                            Acknowledgment acknowledgment,
                            @Header(KafkaHeaders.RECEIVED_TOPIC) String topic,
                            @Header(KafkaHeaders.RECEIVED_MESSAGE_KEY) String key,
-                           @Header("attempt_timestamp") String timestamp) throws InterruptedException {
+                           @Header(LAST_RETRY_ATTEMPT_TIMESTAMP_HEADER) String timestamp) {
         long attemptTimestamp = Long.parseLong(timestamp);
-        if (shouldProcess(thirdRetryDelay, attemptTimestamp)) {
-            acknowledgment.acknowledge();
-            log.info(format("message with id %s from topic %s-%s: DONE", key, topic, message.partition()));
+        if (kafkaConsumerManager.shouldConsume(topic, attemptTimestamp)) {
+            try {
+                log.info(format("trying to reprocess message with id %s from topic %s-%s", key, topic, message.partition()));
+                service.process(message.value());
+            } finally {
+                acknowledgment.acknowledge();
+            }
         } else {
-            sleepPartitionConsumption(THIRD_RETRY_ID,
-                    thirdRetryTopic,
+            kafkaConsumerManager.sleep(thirdRetryTopic,
                     message.partition(),
-                    getRemainingSleepTimeInMillis(thirdRetryDelay, attemptTimestamp));
+                    attemptTimestamp);
 
             //rewind offset to seek last message at given partition
             rewindOnePartitionOneRecord(thirdRetryTopic, message.partition());
         }
     }
 
-    private void sleepPartitionConsumption(String topicId, String topic, int partition, long timeToSleep) throws InterruptedException {
-        kafkaConsumerManager.pausePartition(topicId, topic, partition);
-        sleep(timeToSleep);
-        kafkaConsumerManager.resumePartition(topicId, topic, partition);
-    }
-
-    private long getRemainingSleepTimeInMillis(long delay, long attemptTimestamp) {
-        return delay - (currentTimeMillis() - attemptTimestamp);
-    }
-
     private void rewindOnePartitionOneRecord(String topic, int partition) {
         getSeekCallbackFor(new TopicPartition(topic, partition))
                 .seekRelative(topic, partition, -1, true);
-    }
-
-    private boolean shouldProcess(long delay, long timestamp) {
-        return System.currentTimeMillis() >= timestamp + delay;
     }
 }

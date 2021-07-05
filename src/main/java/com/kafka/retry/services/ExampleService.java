@@ -1,28 +1,41 @@
 package com.kafka.retry.services;
 
+import com.kafka.retry.dtos.MessageDTO;
 import com.kafka.retry.exceptions.NonRecoverableException;
 import com.kafka.retry.exceptions.RecoverableException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
-import java.time.LocalDateTime;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Random;
+import java.util.UUID;
 
+@Slf4j
 @Service
 public class ExampleService {
-    Logger logger = LoggerFactory.getLogger(this.getClass());
-
-    public void process(String message, String id) {
-        Integer parsedId = Integer.parseInt(id);
-
-        if (parsedId.equals(0)) {
-            logger.info(id + " - this is a recoverable exception, starting recovery flow");
-            throw new RecoverableException(LocalDateTime.now() + " - " + id + " - this is a recoverable exception, starting recovery flow");
-        } else if (parsedId > 0 && parsedId <= 5) {
-            logger.info(id + " - the message is " + message);
+    public void process(MessageDTO message) {
+        if (message.getOriginName().equals("A")) {
+            log.info(String.format("The message with id %s was successfully processed", message.getId()));
+        } else if (message.getOriginName().equals("B")) {
+            getRandomDestiny(message.getId());
+            log.info(String.format("The message with id %s was successfully processed", message.getId()));
+        } else if (message.getOriginName().equals("C")) {
+            log.error(String.format("a recoverable error was caught while processing message %s, starting recovery flow", message.getId()));
+            throw new RecoverableException();
         } else {
-            logger.info(id + " - this is a non recoverable exception, the message will be sent to DLT");
-            throw new NonRecoverableException(LocalDateTime.now() + " - " + id + " - this is a non recoverable exception, the message will be sent to DLT");
+            log.error(String.format("a non recoverable exception was caught while processing message %s, sending message to dlq", message.getId()));
+            throw new NonRecoverableException();
+        }
+    }
+
+    private void getRandomDestiny(UUID messageId) {
+        List<Integer> givenList = Arrays.asList(1, 2);
+        Random rand = new Random();
+        int randomElement = givenList.get(rand.nextInt(givenList.size()));
+        if (randomElement == 1) {
+            log.error(String.format("a recoverable error was caught while processing message %s, starting recovery flow", messageId));
+            throw new RecoverableException();
         }
     }
 }

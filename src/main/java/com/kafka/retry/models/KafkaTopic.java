@@ -1,14 +1,26 @@
 package com.kafka.retry.models;
 
+import java.util.Objects;
+
 public class KafkaTopic {
     private String topicName;
-    private Integer retryCount;
+    private Integer retryValue;
     private KafkaTopic nextTopic;
     private KafkaTopic previousTopic;
+    private Type type;
 
-    public KafkaTopic(String topicName, Integer retryCount) {
+    public KafkaTopic(String topicName, Integer retryValue, Type type) {
         this.topicName = topicName;
-        this.retryCount = retryCount;
+        this.retryValue = retryValue;
+        this.type = type;
+    }
+
+    public Type getType() {
+        return type;
+    }
+
+    public void setType(Type type) {
+        this.type = type;
     }
 
     public String getTopicName() {
@@ -19,12 +31,12 @@ public class KafkaTopic {
         this.topicName = topicName;
     }
 
-    public Integer getRetryCount() {
-        return retryCount;
+    public Integer getRetryValue() {
+        return retryValue;
     }
 
-    public void setRetryCount(Integer retryCount) {
-        this.retryCount = retryCount;
+    public void setRetryValue(Integer retryValue) {
+        this.retryValue = retryValue;
     }
 
     public KafkaTopic getNextTopic() {
@@ -44,6 +56,23 @@ public class KafkaTopic {
     }
 
     public String toString() {
-        return String.format("Topic name: %s, Retry count: %s", topicName, retryCount);
+        return String.format("Topic name: %s, Retry count: %s", topicName, retryValue);
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        KafkaTopic that = (KafkaTopic) o;
+        return topicName.equals(that.topicName);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(topicName);
+    }
+
+    public enum Type {
+        MAIN, RETRY, DLT
     }
 }

@@ -1,7 +1,7 @@
 #spring config
 server:
   port: 8082
-teste-enum: -first-retry
+
 #topic config
 topics:
   main:
@@ -9,19 +9,32 @@ topics:
     id: main
   retry:
     max-retries: 3
+    topic-prefix: ${topics.main.topic}-${spring.kafka.consumer.group-id}
     first-retry-topic: ${topics.retry.topic-prefix}-first-retry
     first-retry-id: first-retry
+    first-retry-delay: 60000
+    second-retry-delay: 120000
+    third-retry-delay: 240000
     second-retry-topic: ${topics.retry.topic-prefix}-second-retry
     second-retry-id: second-retry
     third-retry-topic: ${topics.retry.topic-prefix}-third-retry
     third-retry-id: third-retry
     dlq: ${topics.retry.topic-prefix}-dlq
 
-#producer config
-kafka:
-  bootstrap-servers: localhost:9092
-
-#kafka consumer properties
+retry:
+  max-retries: 3
+  topic-prefix: ${topics.main.topic}-${spring.kafka.consumer.group-id}
+  first-retry-topic: ${topics.retry.topic-prefix}-first-retry
+  first-retry-id: first-retry
+  first-retry-delay: 60000
+  second-retry-delay: 120000
+  third-retry-delay: 240000
+  second-retry-topic: ${topics.retry.topic-prefix}-second-retry
+  second-retry-id: second-retry
+  third-retry-topic: ${topics.retry.topic-prefix}-third-retry
+  third-retry-id: third-retry
+  dlq: ${topics.retry.topic-prefix}-dlq
+#kafka properties
 spring:
   kafka:
     consumer:
@@ -29,3 +42,9 @@ spring:
       bootstrap-servers: http://localhost:9092
       group-id: aws-consumer
       auto-offset-reset: latest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: com.kafka.retry.serializers.MessageDTODeserializer
+    producer:
+      bootstrap-servers: localhost:9092
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: com.kafka.retry.serializers.MessageDTOSerializer

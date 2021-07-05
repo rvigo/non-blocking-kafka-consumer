@@ -1,9 +1,11 @@
 package com.kafka.retry.exceptions;
 
-
 public class RecoverableException extends RuntimeException {
 
     private String message;
+
+    public RecoverableException() {
+    }
 
     public RecoverableException(String message, Exception ex) {
         super(message);
