@@ -1,6 +1,6 @@
 #spring config
 server:
-  port: 8082
+  port: 3000
 
 #topic config
 topics:
@@ -21,26 +21,51 @@ topics:
     third-retry-id: third-retry
     dlq: ${topics.retry.topic-prefix}-dlq
 
-retry:
+kafka-retry:
+  topic-base-name: dados-lgpd
+  group-id: aws-consumer
+  topics:
+    - topic-name: ${kafka-retry.topic-base-name}
+      retry-value: 0
+      type: MAIN
+    - topic-name: ${kafka-retry.topic-retry-prefix}-first-retry
+      retry-value: 1
+      type: RETRY
+    - topic-name: ${kafka-retry.topic-retry-prefix}-second-retry
+      retry-value: 2
+      type: RETRY
+    - topic-name: ${kafka-retry.topic-retry-prefix}-third-retry
+      retry-value: 3
+      type: RETRY
+    - topic-name: ${kafka-retry.topic-retry-prefix}-dlq
+      retry-value: 4
+      type: DLT
+
   max-retries: 3
-  topic-prefix: ${topics.main.topic}-${spring.kafka.consumer.group-id}
-  first-retry-topic: ${topics.retry.topic-prefix}-first-retry
-  first-retry-id: first-retry
-  first-retry-delay: 60000
-  second-retry-delay: 120000
-  third-retry-delay: 240000
-  second-retry-topic: ${topics.retry.topic-prefix}-second-retry
-  second-retry-id: second-retry
-  third-retry-topic: ${topics.retry.topic-prefix}-third-retry
-  third-retry-id: third-retry
-  dlq: ${topics.retry.topic-prefix}-dlq
-#kafka properties
+  topic-retry-prefix: ${kafka-retry.topic-base-name}-${kafka-retry.group-id}
+  delays:
+    - 0
+    - 6000
+    - 12000
+    - 24000
+    - 0
+  consumer-ids:
+    - main
+    - first-retry
+    - second-retry
+    - third-retry
+    - dlq
+  exceptions:
+    recoverable:
+     - com.kafka.retry.exceptions.RecoverableException
+    unrecoverable:
+
 spring:
   kafka:
     consumer:
+      group-id: aws-consumer
       options.enable.auto.commit: false
       bootstrap-servers: http://localhost:9092
-      group-id: aws-consumer
       auto-offset-reset: latest
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
       value-deserializer: com.kafka.retry.serializers.MessageDTODeserializer

@@ -1,8 +1,8 @@
 package com.kafka.retry.producers;
 
+import com.kafka.retry.configurations.kafka.managers.KafkaTopicHolder;
 import com.kafka.retry.dtos.MessageDTO;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
+import lombok.AllArgsConstructor;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 
@@ -14,15 +14,10 @@ import java.util.stream.Collectors;
 import static java.util.stream.Stream.of;
 
 @Service
+@AllArgsConstructor
 public class ExampleProducer {
     private final KafkaTemplate<String, MessageDTO> kafkaTemplate;
-    @Value("${topics.main.topic}")
-    private String topic;
-
-    @Autowired
-    public ExampleProducer(KafkaTemplate<String, MessageDTO> kafkaTemplate) {
-        this.kafkaTemplate = kafkaTemplate;
-    }
+    private final KafkaTopicHolder holder;
 
     public void send(int a, int b, int c, int d) {
         try {
@@ -39,7 +34,7 @@ public class ExampleProducer {
 
     private void sendKafkaMessages(List<MessageDTO> messageDTOList) {
         for (MessageDTO dto : messageDTOList) {
-            kafkaTemplate.send(topic, dto.getId().toString(), dto);
+            kafkaTemplate.send(holder.getFirstTopic().getTopicName(), dto.getId().toString(), dto);
         }
     }
 

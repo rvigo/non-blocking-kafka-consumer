@@ -1,4 +1,4 @@
-package com.kafka.retry.configurations.managers;
+package com.kafka.retry.configurations.kafka.managers;
 
 import com.kafka.retry.exceptions.CustomException;
 import com.kafka.retry.models.KafkaTopic;
@@ -23,8 +23,7 @@ import static java.util.Collections.singletonList;
 @Component
 public class KafkaConsumerManager {
     private final KafkaListenerEndpointRegistry registry;
-    // key: listenerId (String), value: List<KafkaConsumerHolder>>
-    private final Map<String, List<KafkaConsumerHolder>> kafkaConsumerHolderMap;
+    private final Map<String, List<KafkaConsumerHolder>> kafkaConsumerHolderMap; // key: listenerId (String), value: List<KafkaConsumerHolder>>
 
     @Autowired
     public KafkaConsumerManager(KafkaListenerEndpointRegistry registry) {
@@ -37,7 +36,7 @@ public class KafkaConsumerManager {
                 .withKafkaTopicList(singletonList(kafkaTopic))
                 .withBackOffDelay(delay)
                 .build();
-        log.info(String.format("registering topic %s", kafkaTopic.getTopicName()));
+        log.info(String.format("registering topic %s to consumer with id %s and %s ms of delay", kafkaTopic.getTopicName(), listenerId, delay));
         if (null == kafkaConsumerHolderMap.get(listenerId)) {
             kafkaConsumerHolderMap.put(listenerId, singletonList(holder));
         } else {

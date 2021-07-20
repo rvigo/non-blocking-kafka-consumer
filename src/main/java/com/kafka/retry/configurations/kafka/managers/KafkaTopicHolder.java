@@ -1,11 +1,18 @@
-package com.kafka.retry.configurations;
+package com.kafka.retry.configurations.kafka.managers;
 
 import com.kafka.retry.exceptions.UnregisteredTopicException;
 import com.kafka.retry.models.KafkaTopic;
-import org.springframework.stereotype.Component;
+import org.jetbrains.annotations.NotNull;
 
-@Component
-public class KafkaTopicHolder {
+import java.util.Iterator;
+import java.util.Spliterator;
+import java.util.Spliterators;
+import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
+
+import static java.lang.String.format;
+
+public class KafkaTopicHolder implements Iterable<KafkaTopic> {
     private KafkaTopic firstTopic;
     private KafkaTopic lastTopic;
     private int size;
@@ -102,10 +109,43 @@ public class KafkaTopicHolder {
         KafkaTopic topic = firstTopic;
         int i = 0;
         while (topic != null) {
-            sb.append(String.format("%s : %s\n", i, topic));
+            sb.append(format("%s : %s\n", i, topic));
             topic = topic.getNextTopic();
             i++;
         }
         return sb.toString();
     }
+
+    @NotNull
+    @Override
+    public Iterator<KafkaTopic> iterator() {
+        return new Iterator<>() {
+            KafkaTopic current = firstTopic;
+
+            @Override
+            public boolean hasNext() {
+                return current != null;
+            }
+
+            @Override
+            public KafkaTopic next() {
+                KafkaTopic head = current;
+                current = current.getNextTopic();
+                return head;
+            }
+        };
+    }
+
+    /**
+     * @return a Stream of KafkaTopics
+     */
+    public Stream<KafkaTopic> stream() {
+        return StreamSupport
+                .stream(
+                        Spliterators.spliterator(this.iterator(),
+                                0L,
+                                Spliterator.NONNULL),
+                        false);
+    }
+
 }
