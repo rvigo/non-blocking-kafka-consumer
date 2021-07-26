@@ -25,17 +25,6 @@ public class ExampleConsumer extends AbstractConsumerSeekAware {
     private final KafkaConsumerManager kafkaConsumerManager;
     private final ExampleService service;
 
-    //TODO refatorar application.yml
-    //TODO ajustar commits
-    //TODO compartilhar repositorio publico no github
-    //TODO refatorar logica
-    // consumer:
-    //  id:
-    //  delay:
-    //  topics:
-    //   - topic1
-    //   - topic2...
-
     @KafkaListener(id = "${topics.main.id}",
             topics = "${topics.main.topic}",
             groupId = "${spring.kafka.consumer.group-id}",
@@ -110,6 +99,7 @@ public class ExampleConsumer extends AbstractConsumerSeekAware {
         if (kafkaConsumerManager.shouldConsume(record.topic(), attemptTimestamp)) {
             try {
                 log.info(format("trying to reprocess message with id %s from topic %s-%s", key, record.topic(), record.partition()));
+                record.value().setOriginName("A");
                 service.process(record.value());
             } finally {
                 acknowledgment.acknowledge();

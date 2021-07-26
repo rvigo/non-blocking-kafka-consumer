@@ -1,7 +1,3 @@
-#spring config
-server:
-  port: 3000
-
 #topic config
 topics:
   main:
@@ -37,7 +33,7 @@ kafka-retry:
     - topic-name: ${kafka-retry.topic-retry-prefix}-third-retry
       retry-value: 3
       type: RETRY
-    - topic-name: ${kafka-retry.topic-retry-prefix}-dlq
+    - topic-name: ${kafka-retry.topic-retry-prefix}-dlt
       retry-value: 4
       type: DLT
 
@@ -45,16 +41,16 @@ kafka-retry:
   topic-retry-prefix: ${kafka-retry.topic-base-name}-${kafka-retry.group-id}
   delays:
     - 0
+    - 1000
+    - 3000
     - 6000
-    - 12000
-    - 24000
     - 0
   consumer-ids:
     - main
     - first-retry
     - second-retry
     - third-retry
-    - dlq
+    - dlt
   exceptions:
     recoverable:
      - com.kafka.retry.exceptions.RecoverableException

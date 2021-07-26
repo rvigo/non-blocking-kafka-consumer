@@ -147,5 +147,4 @@ public class KafkaTopicHolder implements Iterable<KafkaTopic> {
                                 Spliterator.NONNULL),
                         false);
     }
-
 }

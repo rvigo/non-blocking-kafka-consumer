@@ -9,18 +9,17 @@ import org.jetbrains.annotations.NotNull;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.kafka.config.KafkaListenerEndpointRegistry;
 import org.springframework.kafka.listener.MessageListenerContainer;
-import org.springframework.stereotype.Component;
 
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import static java.lang.String.format;
 import static java.lang.System.currentTimeMillis;
 import static java.util.Collections.singletonList;
 
 @Slf4j
-@Component
 public class KafkaConsumerManager {
     private final KafkaListenerEndpointRegistry registry;
     private final Map<String, List<KafkaConsumerHolder>> kafkaConsumerHolderMap; // key: listenerId (String), value: List<KafkaConsumerHolder>>
@@ -36,7 +35,7 @@ public class KafkaConsumerManager {
                 .withKafkaTopicList(singletonList(kafkaTopic))
                 .withBackOffDelay(delay)
                 .build();
-        log.info(String.format("registering topic %s to consumer with id %s and %s ms of delay", kafkaTopic.getTopicName(), listenerId, delay));
+        log.info(format("registering topic %s to consumer with id %s and %s ms of delay", kafkaTopic.getTopicName(), listenerId, delay));
         if (null == kafkaConsumerHolderMap.get(listenerId)) {
             kafkaConsumerHolderMap.put(listenerId, singletonList(holder));
         } else {
@@ -58,7 +57,9 @@ public class KafkaConsumerManager {
     public void sleep(String topic, int partition, long attemptTimestamp) {
         KafkaConsumerHolder holder = getHolderByTopic(topic);
         pausePartition(topic, partition);
-        Thread.sleep(holder.getBackOffDelay() - (currentTimeMillis() - attemptTimestamp));
+        long sleep = holder.getBackOffDelay() - (currentTimeMillis() - attemptTimestamp);
+        log.debug(format("sleeping partition consumption for %s ms", sleep));
+        Thread.sleep(sleep);
         resumePartition(topic, partition);
     }
 
@@ -70,9 +71,9 @@ public class KafkaConsumerManager {
         return kafkaConsumerHolderMap.values()
                 .stream()
                 .flatMap(Collection::stream)
-                .filter(holder -> holder.kafkaTopicList
+                .filter(ch -> ch.getKafkaTopicList()
                         .stream()
-                        .anyMatch(kafkaTopic -> kafkaTopic.getTopicName().equals(topic)))
+                        .anyMatch(t -> t.getTopicName().equals(topic)))
                 .findFirst()
                 .orElseThrow(RuntimeException::new);
     }
@@ -121,7 +122,7 @@ public class KafkaConsumerManager {
     @NoArgsConstructor
     @AllArgsConstructor
     @Builder(setterPrefix = "with")
-    private static class KafkaConsumerHolder {
+    public static class KafkaConsumerHolder {
         private long backOffDelay;
         private List<KafkaTopic> kafkaTopicList;
     }

@@ -19,7 +19,6 @@ public class KafkaTopicDestinationResolver {
     private final KafkaTopicHolder kafkaTopicHolder;
     private final KafkaExceptionRecover kafkaExceptionRecover;
 
-
     // resolve topic destination for the main consumer
     public BiFunction<ConsumerRecord<?, ?>, Exception, TopicPartition> resolveMainTopicDestination() {
         return (record, exception) -> {
@@ -28,7 +27,7 @@ public class KafkaTopicDestinationResolver {
                 String target = kafkaTopicHolder.getKafkaTopicByName(source).getNextTopic().getTopicName();
                 return new TopicPartition(target, record.partition());
             }
-            log.debug(String.format("sending message with id %s to dlq ", record.key()));
+            log.debug(String.format("sending message with id %s to dlt", record.key()));
             return new TopicPartition(kafkaTopicHolder.getLastTopic().getTopicName(), record.partition());
         };
     }
@@ -41,7 +40,7 @@ public class KafkaTopicDestinationResolver {
             if (actualRetryCount < kafkaProperties.getMaxRetries()) {
                 target = kafkaTopicHolder.getKafkaTopicByRetryValue(actualRetryCount).getNextTopic().getTopicName();
             } else {
-                log.debug(String.format("sending message %s to dlq ", record.key()));
+                log.debug(String.format("sending message %s to dlt", record.key()));
                 target = kafkaTopicHolder.getLastTopic().getTopicName();
             }
             return new TopicPartition(target, record.partition());
