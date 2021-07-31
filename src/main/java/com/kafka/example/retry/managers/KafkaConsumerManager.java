@@ -1,7 +1,7 @@
 package com.kafka.example.retry.managers;
 
-import com.kafka.example.retry.utils.KafkaPropertiesProvider;
 import com.kafka.example.exceptions.CustomException;
+import com.kafka.example.retry.models.Consumer;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.common.TopicPartition;
@@ -17,10 +17,10 @@ import static java.lang.System.currentTimeMillis;
 @Slf4j
 public class KafkaConsumerManager {
     private final KafkaListenerEndpointRegistry registry;
-    private final List<KafkaPropertiesProvider.Consumer> consumers;
+    private final List<Consumer> consumers;
 
     @Autowired
-    public KafkaConsumerManager(KafkaListenerEndpointRegistry registry, List<KafkaPropertiesProvider.Consumer> consumers) {
+    public KafkaConsumerManager(KafkaListenerEndpointRegistry registry, List<Consumer> consumers) {
         this.registry = registry;
         this.consumers = consumers;
     }
@@ -36,7 +36,7 @@ public class KafkaConsumerManager {
     }
 
     private long getBackOffDelayByTopic(String topic) {
-        KafkaPropertiesProvider.Consumer consumer = consumers
+        Consumer consumer = consumers
                 .stream()
                 .filter(t -> t.getTopics()
                         .stream()
@@ -78,7 +78,7 @@ public class KafkaConsumerManager {
     }
 
     private String getListenerIdByTopicName(String topic) {
-        KafkaPropertiesProvider.Consumer consumer = consumers.stream()
+        Consumer consumer = consumers.stream()
                 .filter(c -> c.getTopics()
                         .stream()
                         .anyMatch(t -> t.getTopicName().equals(topic)))

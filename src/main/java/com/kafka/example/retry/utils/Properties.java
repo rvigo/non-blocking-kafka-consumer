@@ -1,5 +1,6 @@
 package com.kafka.example.retry.utils;
 
+import com.kafka.example.retry.models.Consumer;
 import lombok.Builder;
 import lombok.Data;
 import lombok.Singular;
@@ -18,6 +19,6 @@ public class Properties {
     @Singular
     private List<Class<?>> unrecoverableExceptions;
     @Singular
-    private List<KafkaPropertiesProvider.Consumer> consumers;
+    private List<Consumer> consumers;
 }
 
