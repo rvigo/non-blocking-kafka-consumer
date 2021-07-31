@@ -1,59 +1,38 @@
 #topic config
-topics:
-  main:
-    topic: dados-lgpd
-    id: main
-  retry:
-    max-retries: 3
-    topic-prefix: ${topics.main.topic}-${spring.kafka.consumer.group-id}
-    first-retry-topic: ${topics.retry.topic-prefix}-first-retry
-    first-retry-id: first-retry
-    first-retry-delay: 60000
-    second-retry-delay: 120000
-    third-retry-delay: 240000
-    second-retry-topic: ${topics.retry.topic-prefix}-second-retry
-    second-retry-id: second-retry
-    third-retry-topic: ${topics.retry.topic-prefix}-third-retry
-    third-retry-id: third-retry
-    dlq: ${topics.retry.topic-prefix}-dlq
-
 kafka-retry:
   topic-base-name: dados-lgpd
   group-id: aws-consumer
-  topics:
-    - topic-name: ${kafka-retry.topic-base-name}
-      retry-value: 0
-      type: MAIN
-    - topic-name: ${kafka-retry.topic-retry-prefix}-first-retry
-      retry-value: 1
-      type: RETRY
-    - topic-name: ${kafka-retry.topic-retry-prefix}-second-retry
-      retry-value: 2
-      type: RETRY
-    - topic-name: ${kafka-retry.topic-retry-prefix}-third-retry
-      retry-value: 3
-      type: RETRY
-    - topic-name: ${kafka-retry.topic-retry-prefix}-dlt
-      retry-value: 4
-      type: DLT
-
   max-retries: 3
   topic-retry-prefix: ${kafka-retry.topic-base-name}-${kafka-retry.group-id}
-  delays:
-    - 0
-    - 1000
-    - 3000
-    - 6000
-    - 0
-  consumer-ids:
-    - main
-    - first-retry
-    - second-retry
-    - third-retry
-    - dlt
+  consumers:
+    - id: main
+      delay: 0
+      topics:
+        - topic-name: ${kafka-retry.topic-base-name}
+          retry-value: 0
+    - id: first-retry
+      delay: 1000
+      topics:
+        - topic-name: ${kafka-retry.topic-retry-prefix}-first-retry
+          retry-value: 1
+    - id: second-retry
+      delay: 2000
+      topics:
+        - topic-name: ${kafka-retry.topic-retry-prefix}-second-retry
+          retry-value: 2
+    - id: third-retry
+      delay: 4000
+      topics:
+        - topic-name: ${kafka-retry.topic-retry-prefix}-third-retry
+          retry-value: 3
+    - id: dlt
+      delay: 6000
+      topics:
+        - topic-name: ${kafka-retry.topic-retry-prefix}-dlt
+          retry-value: 4
   exceptions:
     recoverable:
-     - com.kafka.retry.exceptions.RecoverableException
+      - com.kafka.retry.exceptions.RecoverableException
     unrecoverable:
 
 spring:

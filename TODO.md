@@ -1,6 +1,6 @@
-- [ ] ajustar commits
+- [x] ajustar commits
 - [ ] compartilhar repositorio publico no github
-- [ ] refatorar application.yml para modelo abaixo (precisa de validação): 
+- [x] refatorar application.yml para modelo abaixo (precisa de validação): 
     ```
   consumer:
         id:
