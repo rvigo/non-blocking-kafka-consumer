@@ -1,9 +1,9 @@
 package com.kafka.example.retry.configurations;
 
-import com.kafka.example.retry.managers.KafkaTopicHolder;
+import com.kafka.example.dtos.MessageDTO;
+import com.kafka.example.retry.managers.KafkaTopicChain;
 import com.kafka.example.retry.resolvers.KafkaHeadersResolver;
 import com.kafka.example.retry.resolvers.KafkaTopicDestinationResolver;
-import com.kafka.example.dtos.MessageDTO;
 import lombok.AllArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -30,7 +30,7 @@ public class KafkaConsumerConfiguration {
     @Bean
     public ConcurrentKafkaListenerContainerFactory<String, MessageDTO> kafkaListenerContainerFactory(ConsumerFactory<Object, Object> kafkaConsumerFactory,
                                                                                                      KafkaTemplate<String, MessageDTO> kafkaTemplate,
-                                                                                                     KafkaTopicHolder kafkaTopicHolder) {
+                                                                                                     KafkaTopicChain kafkaTopicChain) {
         ConcurrentKafkaListenerContainerFactory<String, MessageDTO> factory = new ConcurrentKafkaListenerContainerFactory<>();
         factory.setConsumerFactory(kafkaConsumerFactory);
         DeadLetterPublishingRecoverer deadLetterPublishingRecoverer = new DeadLetterPublishingRecoverer(singletonMap(Object.class, kafkaTemplate),
@@ -45,7 +45,7 @@ public class KafkaConsumerConfiguration {
     @Bean
     public ConcurrentKafkaListenerContainerFactory<String, MessageDTO> kafkaRetryListenerContainerFactory(ConsumerFactory<Object, Object> kafkaConsumerFactory,
                                                                                                           KafkaTemplate<String, MessageDTO> kafkaTemplate,
-                                                                                                          KafkaTopicHolder kafkaTopicHolder) {
+                                                                                                          KafkaTopicChain kafkaTopicChain) {
         ConcurrentKafkaListenerContainerFactory<String, MessageDTO> factory = new ConcurrentKafkaListenerContainerFactory<>();
         factory.setConsumerFactory(kafkaConsumerFactory);
         DeadLetterPublishingRecoverer deadLetterPublishingRecoverer = new DeadLetterPublishingRecoverer(singletonMap(Object.class, kafkaTemplate),

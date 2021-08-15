@@ -1,11 +1,11 @@
 package com.kafka.example.retry.managers;
 
-import com.kafka.example.exceptions.CustomException;
-import com.kafka.example.retry.models.Consumer;
+import com.kafka.example.retry.entities.Consumer;
+import com.kafka.example.retry.exceptions.PartitionManagementException;
+import lombok.AllArgsConstructor;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.common.TopicPartition;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.kafka.config.KafkaListenerEndpointRegistry;
 import org.springframework.kafka.listener.MessageListenerContainer;
 
@@ -15,15 +15,10 @@ import static java.lang.String.format;
 import static java.lang.System.currentTimeMillis;
 
 @Slf4j
+@AllArgsConstructor
 public class KafkaConsumerManager {
     private final KafkaListenerEndpointRegistry registry;
     private final List<Consumer> consumers;
-
-    @Autowired
-    public KafkaConsumerManager(KafkaListenerEndpointRegistry registry, List<Consumer> consumers) {
-        this.registry = registry;
-        this.consumers = consumers;
-    }
 
     @SneakyThrows
     public void sleep(String topic, int partition, long attemptTimestamp) {
@@ -56,7 +51,7 @@ public class KafkaConsumerManager {
             getListenerContainer(getListenerIdByTopicName(topic)).pausePartition(topicPartition);
         } catch (Exception e) {
             log.error(e.getLocalizedMessage());
-            throw new CustomException(e.getLocalizedMessage());
+            throw new PartitionManagementException("An error occurred while pausing the desired partition", e);
         }
     }
 
@@ -69,7 +64,7 @@ public class KafkaConsumerManager {
             }
         } catch (Exception e) {
             log.error(e.getLocalizedMessage());
-            throw new CustomException(e.getLocalizedMessage());
+            throw new PartitionManagementException("An error occurred while resuming the desired partition", e);
         }
     }
 
@@ -84,7 +79,6 @@ public class KafkaConsumerManager {
                         .anyMatch(t -> t.getTopicName().equals(topic)))
                 .findFirst()
                 .orElseThrow();
-
         return consumer.getId();
     }
 }

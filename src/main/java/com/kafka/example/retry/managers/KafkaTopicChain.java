@@ -1,23 +1,16 @@
 package com.kafka.example.retry.managers;
 
 import com.kafka.example.retry.exceptions.UnregisteredTopicException;
-import com.kafka.example.retry.models.KafkaTopic;
-import org.jetbrains.annotations.NotNull;
-
-import java.util.Iterator;
-import java.util.Spliterator;
-import java.util.Spliterators;
-import java.util.stream.Stream;
-import java.util.stream.StreamSupport;
+import com.kafka.example.retry.entities.KafkaTopic;
 
 import static java.lang.String.format;
 
-public class KafkaTopicHolder implements Iterable<KafkaTopic> {
+public class KafkaTopicChain {
     private KafkaTopic firstTopic;
     private KafkaTopic lastTopic;
     private int size;
 
-    public KafkaTopicHolder() {
+    public KafkaTopicChain() {
         firstTopic = null;
         lastTopic = null;
     }
@@ -59,18 +52,19 @@ public class KafkaTopicHolder implements Iterable<KafkaTopic> {
                     lastTopic.setNextTopic(null);
                 } else {
                     currentTopic.getPreviousTopic().setNextTopic(currentTopic.getNextTopic());
-                    currentTopic.getNextTopic().setNextTopic(currentTopic.getPreviousTopic());
+                    currentTopic.getNextTopic().setPreviousTopic(currentTopic.getPreviousTopic());
                 }
                 size--;
                 break;
             }
+            currentTopic = currentTopic.getNextTopic();
         }
     }
 
-    public boolean contains(String topic) {
+    public boolean contains(KafkaTopic topic){
         KafkaTopic current = firstTopic;
         while (null != current) {
-            if (current.getTopicName().equals(topic)) {
+            if (current.equals(topic)) {
                 return true;
             }
             current = current.getNextTopic();
@@ -114,37 +108,5 @@ public class KafkaTopicHolder implements Iterable<KafkaTopic> {
             i++;
         }
         return sb.toString();
-    }
-
-    @NotNull
-    @Override
-    public Iterator<KafkaTopic> iterator() {
-        return new Iterator<>() {
-            KafkaTopic current = firstTopic;
-
-            @Override
-            public boolean hasNext() {
-                return current != null;
-            }
-
-            @Override
-            public KafkaTopic next() {
-                KafkaTopic head = current;
-                current = current.getNextTopic();
-                return head;
-            }
-        };
-    }
-
-    /**
-     * @return a Stream of KafkaTopics
-     */
-    public Stream<KafkaTopic> stream() {
-        return StreamSupport
-                .stream(
-                        Spliterators.spliterator(this.iterator(),
-                                0L,
-                                Spliterator.NONNULL),
-                        false);
     }
 }

@@ -1,4 +1,4 @@
-package com.kafka.example.retry.models;
+package com.kafka.example.retry.entities;
 
 import lombok.Data;
 import lombok.NoArgsConstructor;

@@ -1,6 +1,6 @@
-#topic config
+#retry config
 kafka-retry:
-  topic-base-name: dados-lgpd
+  topic-base-name: kafka-lab
   group-id: aws-consumer
   max-retries: 3
   topic-retry-prefix: ${kafka-retry.topic-base-name}-${kafka-retry.group-id}
@@ -30,16 +30,11 @@ kafka-retry:
       topics:
         - topic-name: ${kafka-retry.topic-retry-prefix}-dlt
           retry-value: 4
-  exceptions:
-    recoverable:
-      - com.kafka.retry.exceptions.RecoverableException
-    unrecoverable:
 
 spring:
   kafka:
     consumer:
       group-id: aws-consumer
-      options.enable.auto.commit: false
       bootstrap-servers: http://localhost:9092
       auto-offset-reset: latest
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
