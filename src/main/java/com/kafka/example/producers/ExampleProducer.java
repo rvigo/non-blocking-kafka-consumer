@@ -1,6 +1,6 @@
 package com.kafka.example.producers;
 
-import com.kafka.example.retry.managers.KafkaTopicHolder;
+import com.kafka.example.retry.managers.KafkaTopicChain;
 import com.kafka.example.dtos.MessageDTO;
 import lombok.AllArgsConstructor;
 import org.springframework.kafka.core.KafkaTemplate;
@@ -17,7 +17,7 @@ import static java.util.stream.Stream.of;
 @AllArgsConstructor
 public class ExampleProducer {
     private final KafkaTemplate<String, MessageDTO> kafkaTemplate;
-    private final KafkaTopicHolder holder;
+    private final KafkaTopicChain holder;
 
     public void send(int a, int b, int c, int d) {
         try {
