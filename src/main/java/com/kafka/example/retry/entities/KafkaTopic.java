@@ -4,6 +4,7 @@ import lombok.*;
 
 @Data
 @RequiredArgsConstructor
+@NoArgsConstructor
 @EqualsAndHashCode(onlyExplicitlyIncluded = true)
 @ToString(onlyExplicitlyIncluded = true)
 public class KafkaTopic {
