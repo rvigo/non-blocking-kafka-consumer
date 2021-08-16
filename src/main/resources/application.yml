@@ -38,8 +38,8 @@ spring:
       bootstrap-servers: http://localhost:9092
       auto-offset-reset: latest
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
-      value-deserializer: com.kafka.retry.serializers.MessageDTODeserializer
+      value-deserializer: com.kafka.example.serializers.MessageDTODeserializer
     producer:
       bootstrap-servers: localhost:9092
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
-      value-serializer: com.kafka.retry.serializers.MessageDTOSerializer
+      value-serializer: com.kafka.example.serializers.MessageDTOSerializer
